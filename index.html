@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PRESSBOX AI — Daily Intelligence Briefing</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2300e676'/><text x='8' y='24' font-size='22' font-weight='900' fill='%23000' font-family='Arial'>P</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0e14; color: #e8edf4; font-family: 'Barlow', -apple-system, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0e14; }
+    ::-webkit-scrollbar-thumb { background: #1e2a3a; border-radius: 3px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-type="module">
+    const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+    const TODAY = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+    const DS = {
+      bg:"#0a0e14",surface:"#121820",card:"#171f2a",cardHover:"#1c2635",
+      border:"#1e2a3a",borderActive:"#2d4a6f",text:"#e8edf4",textMuted:"#6b7d95",textDim:"#3d5068",
+      accent:"#00e676",accentDim:"rgba(0,230,118,0.12)",accentGlow:"rgba(0,230,118,0.25)",
+      danger:"#ff5252",warning:"#ffab40",info:"#40c4ff",purple:"#b388ff",
+      font:"'Teko','Barlow Condensed',sans-serif",fontBody:"'Barlow','DM Sans',-apple-system,sans-serif",
+      radius:10,
+    };
+    const TIER={strong:{label:"STRONG EDGE",color:"#00e676",bg:"rgba(0,230,118,0.1)",border:"rgba(0,230,118,0.3)",icon:"🔥"},moderate:{label:"MODERATE",color:"#ffab40",bg:"rgba(255,171,64,0.1)",border:"rgba(255,171,64,0.3)",icon:"📊"},speculative:{label:"SPEC / VALUE",color:"#b388ff",bg:"rgba(179,136,255,0.1)",border:"rgba(179,136,255,0.3)",icon:"🎯"}};
+    const LEAGUE_CFG={nba:{label:"NBA",color:"#40c4ff",bg:"rgba(64,196,255,0.12)",emoji:"🏀"},mlb:{label:"MLB",color:"#ff5252",bg:"rgba(255,82,82,0.12)",emoji:"⚾"},nhl:{label:"NHL",color:"#80deea",bg:"rgba(128,222,234,0.12)",emoji:"🏒"},ufc:{label:"UFC",color:"#ff6e40",bg:"rgba(255,110,64,0.12)",emoji:"🥊"},ncaa:{label:"NCAAM",color:"#69f0ae",bg:"rgba(105,240,174,0.12)",emoji:"🏀"},nfl:{label:"NFL",color:"#a5d6a7",bg:"rgba(165,214,167,0.12)",emoji:"🏈"}};
+    const BET_TYPES={prop:{label:"Player Props",icon:"👤"},spread:{label:"Spreads",icon:"📏"},moneyline:{label:"Moneylines",icon:"💰"},total:{label:"Totals",icon:"🔢"},parlay:{label:"Parlays",icon:"🎰"}};
+    const TAG_CFG={trend:{bg:"rgba(64,196,255,0.12)",color:"#40c4ff",label:"Trend"},matchup:{bg:"rgba(0,230,118,0.12)",color:"#00e676",label:"Matchup"},odds:{bg:"rgba(255,171,64,0.12)",color:"#ffab40",label:"Betting"},injury:{bg:"rgba(255,82,82,0.12)",color:"#ff5252",label:"Injury"},news:{bg:"rgba(179,136,255,0.12)",color:"#b388ff",label:"News"}};
+
+    function Toggle({on,onToggle,label,color=DS.accent,icon}){return(
+      <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 14px",borderRadius:8,background:on?`${color}11`:"transparent",border:`1px solid ${on?color:DS.border}`,cursor:"pointer",transition:"all 0.2s",userSelect:"none"}}>
+        {icon&&<span style={{fontSize:16}}>{icon}</span>}
+        <span style={{fontSize:12,fontWeight:600,color:on?color:DS.textMuted,fontFamily:DS.fontBody,letterSpacing:"0.03em"}}>{label}</span>
+        <div style={{width:36,height:20,borderRadius:10,background:on?color:DS.border,position:"relative",transition:"background 0.2s",flexShrink:0}}>
+          <div style={{width:16,height:16,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:on?18:2,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.4)"}}/>
+        </div>
+      </div>
+    )}
+
+    function ConfidenceDots({value}){const f=Math.floor(value),h=value%1>=0.5;return(
+      <div style={{display:"flex",gap:3,alignItems:"center"}}>
+        {[...Array(5)].map((_,i)=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:i<f?DS.accent:i===f&&h?"rgba(0,230,118,0.4)":DS.border}}/>)}
+      </div>
+    )}
+
+    function SkeletonCard(){return(<div style={{background:DS.card,border:`1px solid ${DS.border}`,borderRadius:DS.radius,padding:"18px 20px",marginBottom:10}}>
+      <div style={{display:"flex",gap:8,marginBottom:12}}><div style={{width:90,height:20,borderRadius:6,background:`linear-gradient(90deg,${DS.card} 25%,${DS.border} 50%,${DS.card} 75%)`,backgroundSize:"200% 100%",animation:"shimmer 1.5s infinite"}}/><div style={{width:70,height:20,borderRadius:6,background:`linear-gradient(90deg,${DS.card} 25%,${DS.border} 50%,${DS.card} 75%)`,backgroundSize:"200% 100%",animation:"shimmer 1.5s infinite"}}/></div>
+      <div style={{width:"75%",height:16,borderRadius:4,background:`linear-gradient(90deg,${DS.card} 25%,${DS.border} 50%,${DS.card} 75%)`,backgroundSize:"200% 100%",animation:"shimmer 1.5s infinite",marginBottom:8}}/><div style={{width:"50%",height:14,borderRadius:4,background:`linear-gradient(90deg,${DS.card} 25%,${DS.border} 50%,${DS.card} 75%)`,backgroundSize:"200% 100%",animation:"shimmer 1.5s infinite"}}/>
+    </div>)}
+
+    function LoadingState({phase}){return(<div>
+      <div style={{textAlign:"center",padding:"16px 0 24px",fontSize:13,color:DS.textMuted,display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontFamily:DS.fontBody}}>
+        <div style={{width:16,height:16,border:`2px solid ${DS.border}`,borderTopColor:DS.accent,borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>{phase}
+      </div>{[...Array(6)].map((_,i)=><SkeletonCard key={i}/>)}</div>)}
+
+    function PickCard({pick,isExpanded,onToggle,delay}){const tc=TIER[pick.tier]||TIER.moderate,lc=LEAGUE_CFG[pick.league]||LEAGUE_CFG.nba;return(
+      <div onClick={onToggle} style={{background:DS.card,border:`1px solid ${isExpanded?tc.border:DS.border}`,borderLeft:`4px solid ${tc.color}`,borderRadius:DS.radius,padding:"14px 18px",marginBottom:8,cursor:"pointer",transition:"all 0.2s",boxShadow:isExpanded?`0 4px 24px rgba(0,0,0,0.3), inset 0 0 0 1px ${tc.border}`:"none",animation:`fadeSlideIn 0.35s ease ${delay}ms both`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+            <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:6,background:tc.bg,color:tc.color,textTransform:"uppercase",letterSpacing:"0.05em",fontFamily:DS.fontBody}}>{tc.icon} {tc.label}</span>
+            <span style={{fontSize:10,padding:"2px 8px",borderRadius:6,background:"rgba(255,255,255,0.05)",color:DS.textMuted,fontFamily:DS.fontBody}}>{(BET_TYPES[pick.type]||{}).label||pick.type}</span>
+            <span style={{fontSize:10,padding:"2px 8px",borderRadius:6,background:lc.bg,color:lc.color,fontWeight:600,fontFamily:DS.fontBody}}>{lc.emoji} {lc.label}</span>
+          </div>
+          <span style={{fontSize:11,color:DS.textMuted,whiteSpace:"nowrap",fontFamily:DS.fontBody}}>{pick.time}</span>
+        </div>
+        <p style={{fontSize:16,fontWeight:600,margin:"0 0 4px",lineHeight:1.35,color:DS.text,fontFamily:DS.font,letterSpacing:"0.01em"}}>{pick.pick} <span style={{fontWeight:700,color:tc.color}}>({pick.odds})</span></p>
+        <p style={{fontSize:12,color:DS.textMuted,margin:0,fontFamily:DS.fontBody}}>{pick.game}</p>
+        {isExpanded&&(<div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${DS.border}`,animation:"fadeIn 0.2s ease"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+            <span style={{fontSize:11,color:DS.textMuted,fontFamily:DS.fontBody}}>Confidence:</span><ConfidenceDots value={pick.confidence}/><span style={{fontSize:11,color:DS.text,fontWeight:600,fontFamily:DS.fontBody}}>{pick.confidence}/5</span>
+          </div>
+          <p style={{fontSize:13,color:DS.textMuted,lineHeight:1.7,margin:"0 0 10px",fontFamily:DS.fontBody}}>{pick.rationale}</p>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{(pick.stats||[]).map((s,i)=><span key={i} style={{fontSize:11,padding:"3px 10px",background:"rgba(255,255,255,0.05)",borderRadius:99,color:DS.textMuted,border:`1px solid ${DS.border}`,fontFamily:DS.fontBody}}>{s}</span>)}</div>
+        </div>)}
+      </div>
+    )}
+
+    function ParlayCard({parlay,index}){const[open,setOpen]=useState(false);const rc={conservative:DS.accent,moderate:DS.warning,aggressive:DS.danger}[parlay.risk]||DS.textMuted;return(
+      <div onClick={()=>setOpen(!open)} style={{background:`linear-gradient(135deg,${DS.card} 0%,${DS.surface} 100%)`,border:`1px solid ${open?rc:DS.border}`,borderRadius:DS.radius,padding:"16px 20px",marginBottom:10,cursor:"pointer",transition:"all 0.2s",animation:`fadeSlideIn 0.35s ease ${index*80}ms both`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:20}}>🎰</span><span style={{fontSize:16,fontWeight:700,color:DS.text,fontFamily:DS.font}}>{parlay.name}</span></div>
+          <span style={{fontSize:11,fontWeight:700,color:rc,padding:"2px 10px",borderRadius:20,background:`${rc}18`,textTransform:"uppercase",letterSpacing:"0.05em",fontFamily:DS.fontBody}}>{parlay.risk}</span>
+        </div>
+        <div style={{display:"flex",gap:16,fontSize:12,color:DS.textMuted,fontFamily:DS.fontBody}}><span>{parlay.legs?.length||0} legs</span><span>Est. odds: <strong style={{color:DS.accent}}>{parlay.estimated_odds}</strong></span></div>
+        {open&&parlay.legs&&(<div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${DS.border}`}}>
+          {parlay.legs.map((leg,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:i<parlay.legs.length-1?`1px solid ${DS.border}`:"none"}}><span style={{fontSize:12,fontWeight:700,color:DS.accent,width:22,fontFamily:DS.fontBody}}>{i+1}.</span><span style={{fontSize:13,color:DS.text,flex:1,fontFamily:DS.fontBody}}>{leg.pick}</span><span style={{fontSize:11,color:DS.textMuted,fontFamily:DS.fontBody}}>{leg.odds}</span></div>)}
+          {parlay.rationale&&<p style={{fontSize:12,color:DS.textMuted,lineHeight:1.6,marginTop:10,fontStyle:"italic",fontFamily:DS.fontBody}}>{parlay.rationale}</p>}
+        </div>)}
+      </div>
+    )}
+
+    function DigestCard({item,index}){const tag=TAG_CFG[item.category]||TAG_CFG.news,lc=LEAGUE_CFG[item.league]||null;return(
+      <div style={{background:DS.card,border:`1px solid ${DS.border}`,borderRadius:DS.radius,padding:"16px 20px",marginBottom:10,animation:`fadeSlideIn 0.35s ease ${index*60}ms both`}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <span style={{fontSize:11,fontWeight:600,padding:"2px 8px",borderRadius:6,background:tag.bg,color:tag.color,fontFamily:DS.fontBody}}>{tag.label}</span>
+          {lc&&<span style={{fontSize:10,padding:"2px 8px",borderRadius:6,background:lc.bg,color:lc.color,fontWeight:600,fontFamily:DS.fontBody}}>{lc.emoji} {lc.label}</span>}
+        </div>
+        <p style={{fontSize:16,fontWeight:600,margin:"0 0 6px",lineHeight:1.35,color:DS.text,fontFamily:DS.font}}>{item.headline}</p>
+        <p style={{fontSize:13,color:DS.textMuted,lineHeight:1.7,margin:0,fontFamily:DS.fontBody}}>{item.body}</p>
+        {item.stats&&<div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>{item.stats.map((s,i)=><span key={i} style={{fontSize:11,padding:"3px 10px",background:"rgba(255,255,255,0.05)",borderRadius:99,color:DS.textMuted,border:`1px solid ${DS.border}`,fontFamily:DS.fontBody}}>{s}</span>)}</div>}
+      </div>
+    )}
+
+    function InjuryCard({item,index}){const sc={out:DS.danger,doubtful:"#ff6e40",questionable:DS.warning,probable:DS.accent,dtd:DS.warning}[item.status?.toLowerCase()]||DS.textMuted;return(
+      <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",background:DS.card,border:`1px solid ${DS.border}`,borderRadius:DS.radius,padding:"10px 16px",marginBottom:6,animation:`fadeSlideIn 0.3s ease ${index*40}ms both`}}>
+        <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:6,background:`${sc}20`,color:sc,textTransform:"uppercase",letterSpacing:"0.05em",flexShrink:0,fontFamily:DS.fontBody}}>{item.status}</span>
+        <div style={{flex:1,minWidth:120}}><span style={{fontSize:13,fontWeight:600,color:DS.text,fontFamily:DS.fontBody}}>{item.player}</span><span style={{fontSize:12,color:DS.textMuted,marginLeft:6,fontFamily:DS.fontBody}}>— {item.team}</span></div>
+        <span style={{fontSize:12,color:DS.textMuted,fontFamily:DS.fontBody}}>{item.injury}</span>
+        {item.impact&&<span style={{fontSize:11,color:sc,fontWeight:500,fontFamily:DS.fontBody}}>{item.impact}</span>}
+      </div>
+    )}
+
+    function App(){
+      const[activeTab,setActiveTab]=useState("picks");
+      const[tierFilter,setTierFilter]=useState("all");
+      const[expandedPick,setExpandedPick]=useState(null);
+      const[sports,setSports]=useState({nba:true,mlb:true,ufc:true,nhl:false,ncaa:false,nfl:false});
+      const[betTypes,setBetTypes]=useState({prop:true,spread:true,moneyline:true,total:true,parlay:true});
+      const[picks,setPicks]=useState([]);
+      const[digest,setDigest]=useState([]);
+      const[injuries,setInjuries]=useState([]);
+      const[parlays,setParlays]=useState([]);
+      const[loading,setLoading]=useState(false);
+      const[loadPhase,setLoadPhase]=useState("");
+      const[error,setError]=useState(null);
+      const[lastUpdated,setLastUpdated]=useState(null);
+      const[showControls,setShowControls]=useState(true);
+
+      const toggleSport=(k)=>setSports(p=>({...p,[k]:!p[k]}));
+      const toggleBetType=(k)=>setBetTypes(p=>({...p,[k]:!p[k]}));
+      const activeSports=Object.entries(sports).filter(([,v])=>v).map(([k])=>k);
+      const activeBetTypes=Object.entries(betTypes).filter(([,v])=>v).map(([k])=>k);
+
+      const callAPI=async(messages,systemPrompt)=>{const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:16000,system:systemPrompt,tools:[{type:"web_search_20250305",name:"web_search"}],messages})});if(!res.ok){const e=await res.text().catch(()=>"");throw new Error(`API ${res.status}: ${e.slice(0,300)}`);}return res.json();};
+      const extractJSON=(content)=>{const t=(content||[]).filter(b=>b.type==="text").map(b=>b.text);const f=t.join("\n").replace(/```json|```/g,"").trim();const s=f.indexOf("{"),e=f.lastIndexOf("}");if(s===-1||e===-1)return null;try{return JSON.parse(f.slice(s,e+1));}catch{return null;}};
+
+      const fetchData=useCallback(async()=>{
+        if(activeSports.length===0){setError("Select at least one sport.");return;}
+        setLoading(true);setError(null);setPicks([]);setDigest([]);setInjuries([]);setParlays([]);
+        const phases=["Scanning today's slate…","Pulling injury reports…","Checking FanDuel lines…","Analyzing matchup data…","Crunching player props…","Grading edges by tier…","Building parlay combos…","Compiling the briefing…"];
+        let pi=0;setLoadPhase(phases[0]);
+        const sn=activeSports.map(s=>(LEAGUE_CFG[s]||{}).label||s.toUpperCase()).join(", ");
+        const bn=activeBetTypes.map(b=>(BET_TYPES[b]||{}).label||b).join(", ");
+        const sys=`You are an elite sports betting analyst. Today is ${TODAY}. FanDuel Sportsbook lines. Real data from web search. Never fabricate.\n\nSPORTS: ${sn}\nBET TYPES: ${bn}\n\nCRITICAL: Final message = ONLY valid JSON. No markdown, no preamble.`;
+        const pc=Math.min(25,Math.max(10,activeSports.length*6)),sc=Math.ceil(pc*0.4),mc=Math.ceil(pc*0.4),spc=pc-sc-mc;
+        const parlayInst=activeBetTypes.includes("parlay")?"3 parlays (conservative 2-3 legs, moderate 3-4, aggressive 4-5).":"No parlays.";
+        const up=`Search today's (${TODAY}) slate for ${sn}. Gather: 1) Schedule + FanDuel lines 2) Player props 3) Injuries 4) Recent stats. Output JSON: {"picks":[{"tier":"strong|moderate|speculative","league":"${activeSports.join("|")}","type":"${activeBetTypes.join("|")}","game":"TEAM @ TEAM","time":"time CT","pick":"pick","odds":"-110","rationale":"2-3 sentences","stats":["s1","s2","s3"],"confidence":4.5}],"digest":[{"category":"trend|matchup|odds|injury|news","league":"${activeSports.join("|")}","headline":"headline","body":"2-3 sentences","stats":["s1","s2"]}],"injuries":[{"player":"Name","team":"Team","status":"OUT|Questionable|DTD|Probable","injury":"part","impact":"impact"}],"parlays":[{"name":"name","risk":"conservative|moderate|aggressive","estimated_odds":"+450","legs":[{"pick":"pick","odds":"-110"}],"rationale":"rationale"}]} RULES: ${pc} picks (${sc} strong 4.0-5.0, ${mc} moderate 3.0-3.9, ${spc} spec 2.0-2.9). 5-8 digest. All injuries. ${parlayInst} FanDuel lines. Real stats only. Types: ${bn}. Leagues: ${sn}.`;
+        try{
+          let msgs=[{role:"user",content:up}];let turns=0;
+          while(turns++<20){pi=Math.min(pi+1,phases.length-1);setLoadPhase(phases[pi]);
+            const d=await callAPI(msgs,sys);const c=d.content||[];const p=extractJSON(c);
+            if(p&&p.picks&&p.picks.length>0){setPicks(p.picks);setDigest(p.digest||[]);setInjuries(p.injuries||[]);setParlays(p.parlays||[]);setLastUpdated(new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}));return;}
+            if(d.stop_reason==="end_turn"){msgs=[...msgs,{role:"assistant",content:c},{role:"user",content:"Output the complete JSON now. ONLY JSON. Start with { end with }."}];setLoadPhase("Finalizing…");const r=await callAPI(msgs,sys);const rp=extractJSON(r.content);if(rp&&rp.picks){setPicks(rp.picks);setDigest(rp.digest||[]);setInjuries(rp.injuries||[]);setParlays(rp.parlays||[]);setLastUpdated(new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}));return;}throw new Error("No valid JSON produced. Try again.");}
+            msgs=[...msgs,{role:"assistant",content:c},{role:"user",content:"Continue. When ready, output JSON."}];
+          }throw new Error("Max rounds exceeded.");
+        }catch(e){console.error(e);setError(e.message);}finally{setLoading(false);}
+      },[activeSports.join(","),activeBetTypes.join(",")]);
+
+      const filteredPicks=useMemo(()=>picks.filter(p=>sports[p.league]&&betTypes[p.type]&&(tierFilter==="all"||p.tier===tierFilter)),[picks,sports,betTypes,tierFilter]);
+      const tierCounts=useMemo(()=>{const b=picks.filter(p=>sports[p.league]&&betTypes[p.type]);return{all:b.length,strong:b.filter(p=>p.tier==="strong").length,moderate:b.filter(p=>p.tier==="moderate").length,speculative:b.filter(p=>p.tier==="speculative").length};},[picks,sports,betTypes]);
+      const filteredDigest=useMemo(()=>digest.filter(d=>!d.league||sports[d.league]),[digest,sports]);
+      const filteredParlays=useMemo(()=>betTypes.parlay?parlays:[], [parlays,betTypes]);
+
+      const tabs=[{key:"picks",label:`Picks${picks.length?` (${filteredPicks.length})`:""}`,icon:"💰"},{key:"parlays",label:`Parlays${filteredParlays.length?` (${filteredParlays.length})`:""}`,icon:"🎰"},{key:"digest",label:"Digest",icon:"📰"},{key:"injuries",label:`Injuries${injuries.length?` (${injuries.length})`:""}`,icon:"🏥"}];
+
+      return(
+        <div style={{fontFamily:DS.fontBody,background:DS.bg,color:DS.text,minHeight:"100vh",padding:"0 0 40px"}}>
+          {/* HEADER */}
+          <div style={{background:"linear-gradient(135deg,#0d1b2a 0%,#1b2838 40%,#0a2e1f 100%)",borderBottom:`1px solid ${DS.border}`,padding:"20px 16px 16px"}}>
+            <div style={{maxWidth:900,margin:"0 auto"}}>
+              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+                <div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+                    <div style={{width:36,height:36,borderRadius:8,background:`linear-gradient(135deg,${DS.accent},#00c853)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#000",fontFamily:DS.font,boxShadow:`0 0 20px ${DS.accentGlow}`}}>P</div>
+                    <div><h1 style={{fontSize:28,fontWeight:700,margin:0,lineHeight:1,fontFamily:DS.font,letterSpacing:"0.02em",textTransform:"uppercase"}}>PRESSBOX <span style={{color:DS.accent}}>AI</span></h1><p style={{fontSize:10,color:DS.textMuted,margin:0,letterSpacing:"0.12em",textTransform:"uppercase",fontWeight:600}}>Daily Intelligence Briefing</p></div>
+                  </div>
+                  <p style={{fontSize:12,color:DS.textMuted,margin:"8px 0 0"}}>{TODAY} — FanDuel Sportsbook</p>
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                  {lastUpdated&&<span style={{fontSize:11,color:DS.textDim,padding:"4px 10px",background:"rgba(255,255,255,0.03)",borderRadius:6}}>Updated {lastUpdated}</span>}
+                  <button onClick={()=>setShowControls(v=>!v)} style={{padding:"8px 14px",borderRadius:8,border:`1px solid ${DS.border}`,background:DS.surface,fontSize:12,fontWeight:600,cursor:"pointer",color:DS.text,fontFamily:DS.fontBody,display:"flex",alignItems:"center",gap:6}}>⚙️ {showControls?"Hide":"Show"} Controls</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{maxWidth:900,margin:"0 auto",padding:"0 16px"}}>
+            {/* CONTROLS */}
+            {showControls&&(
+              <div style={{background:DS.surface,border:`1px solid ${DS.border}`,borderRadius:DS.radius,padding:20,marginTop:16,animation:"fadeSlideIn 0.3s ease"}}>
+                <div style={{marginBottom:16}}>
+                  <p style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:DS.textMuted,marginBottom:10}}>SPORTS</p>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{Object.entries(LEAGUE_CFG).map(([k,c])=><Toggle key={k} on={sports[k]} onToggle={()=>toggleSport(k)} label={c.label} icon={c.emoji} color={c.color}/>)}</div>
+                </div>
+                <div style={{marginBottom:20}}>
+                  <p style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:DS.textMuted,marginBottom:10}}>BET TYPES</p>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{Object.entries(BET_TYPES).map(([k,c])=><Toggle key={k} on={betTypes[k]} onToggle={()=>toggleBetType(k)} label={c.label} icon={c.icon} color={DS.accent}/>)}</div>
+                </div>
+                <button onClick={fetchData} disabled={loading||activeSports.length===0} style={{width:"100%",padding:"14px 24px",borderRadius:10,border:"none",background:loading?DS.border:`linear-gradient(135deg,${DS.accent},#00c853)`,fontSize:15,fontWeight:700,cursor:loading?"not-allowed":"pointer",color:loading?DS.textMuted:"#000",fontFamily:DS.font,letterSpacing:"0.06em",textTransform:"uppercase",display:"flex",alignItems:"center",justifyContent:"center",gap:10,boxShadow:loading?"none":`0 4px 20px ${DS.accentGlow}`,transition:"all 0.2s"}}>
+                  {loading&&<div style={{width:16,height:16,border:"2px solid rgba(0,0,0,0.2)",borderTopColor:"#000",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>}
+                  {loading?"Generating…":`Generate Briefing — ${activeSports.length} Sport${activeSports.length!==1?"s":""}`}
+                </button>
+                {activeSports.length===0&&<p style={{fontSize:12,color:DS.danger,marginTop:8,textAlign:"center"}}>Select at least one sport.</p>}
+              </div>
+            )}
+
+            {/* TABS */}
+            <div style={{display:"flex",gap:0,marginTop:20,marginBottom:16,borderBottom:`1px solid ${DS.border}`,overflowX:"auto"}}>
+              {tabs.map(t=><button key={t.key} onClick={()=>setActiveTab(t.key)} style={{padding:"12px 20px",background:"none",border:"none",borderBottom:activeTab===t.key?`2px solid ${DS.accent}`:"2px solid transparent",marginBottom:-1,fontSize:13,fontWeight:activeTab===t.key?700:500,color:activeTab===t.key?DS.accent:DS.textMuted,cursor:"pointer",display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap",fontFamily:DS.fontBody,transition:"all 0.15s"}}><span>{t.icon}</span> {t.label}</button>)}
+            </div>
+
+            {error&&<div style={{background:"rgba(255,82,82,0.1)",border:"1px solid rgba(255,82,82,0.3)",borderRadius:DS.radius,padding:"14px 18px",marginBottom:16,fontSize:13,color:DS.danger,lineHeight:1.5}}><strong>Error:</strong> {error}</div>}
+            {loading&&<LoadingState phase={loadPhase}/>}
+
+            {/* EMPTY */}
+            {!loading&&picks.length===0&&!error&&(
+              <div style={{textAlign:"center",padding:"60px 20px",animation:"fadeIn 0.5s ease"}}>
+                <div style={{fontSize:48,marginBottom:16}}>🏈🏀⚾🥊</div>
+                <p style={{fontSize:18,fontWeight:600,color:DS.text,fontFamily:DS.font,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Ready to Generate</p>
+                <p style={{fontSize:13,color:DS.textMuted,maxWidth:400,margin:"0 auto",lineHeight:1.6}}>Select your sports and bet types above, then hit <strong style={{color:DS.accent}}>Generate Briefing</strong> to get today's AI-powered picks.</p>
+              </div>
+            )}
+
+            {/* PICKS */}
+            {!loading&&activeTab==="picks"&&picks.length>0&&(<>
+              <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+                {["all","strong","moderate","speculative"].map(t=>{const c=t==="all"?null:TIER[t];const a=tierFilter===t;return(
+                  <button key={t} onClick={()=>setTierFilter(t)} style={{padding:"5px 14px",borderRadius:20,border:"1px solid",borderColor:a?(c?c.color:DS.accent):DS.border,background:a?(c?c.bg:DS.accentDim):"transparent",color:a?(c?c.color:DS.accent):DS.textMuted,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:DS.fontBody,transition:"all 0.15s"}}>
+                    {c&&<span style={{marginRight:4}}>{c.icon}</span>}{t==="all"?`All (${tierCounts.all})`:`${c.label} (${tierCounts[t]})`}
+                  </button>);})}
+              </div>
+              <div style={{background:"rgba(255,171,64,0.08)",border:"1px solid rgba(255,171,64,0.2)",borderRadius:DS.radius,padding:"10px 14px",marginBottom:16,fontSize:12,color:DS.warning,lineHeight:1.5}}>⚠️ <strong>Confirm all lines at FanDuel before placing.</strong> This is research — not financial advice.</div>
+              {filteredPicks.map((p,i)=><PickCard key={`${p.pick}-${i}`} pick={p} isExpanded={expandedPick===i} onToggle={()=>setExpandedPick(expandedPick===i?null:i)} delay={i*35}/>)}
+              {filteredPicks.length===0&&<p style={{textAlign:"center",color:DS.textMuted,padding:"3rem 0",fontSize:14}}>No picks match current filters.</p>}
+            </>)}
+
+            {/* PARLAYS */}
+            {!loading&&activeTab==="parlays"&&picks.length>0&&(<>
+              {!betTypes.parlay?<div style={{textAlign:"center",padding:"3rem 0"}}><p style={{fontSize:14,color:DS.textMuted}}>Enable <strong>Parlays</strong> toggle to generate combinations.</p></div>:(<>
+                <p style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:DS.textMuted,margin:"0 0 12px"}}>Built Parlays — {TODAY}</p>
+                {filteredParlays.map((p,i)=><ParlayCard key={i} parlay={p} index={i}/>)}
+                {filteredParlays.length===0&&<p style={{textAlign:"center",color:DS.textMuted,padding:"3rem 0",fontSize:14}}>No parlays generated.</p>}
+              </>)}
+            </>)}
+
+            {/* DIGEST */}
+            {!loading&&activeTab==="digest"&&picks.length>0&&(<>
+              <p style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:DS.textMuted,margin:"0 0 12px"}}>Today's Storylines</p>
+              {filteredDigest.map((item,i)=><DigestCard key={i} item={item} index={i}/>)}
+              {filteredDigest.length===0&&<p style={{textAlign:"center",color:DS.textMuted,padding:"3rem 0",fontSize:14}}>No digest stories.</p>}
+            </>)}
+
+            {/* INJURIES */}
+            {!loading&&activeTab==="injuries"&&picks.length>0&&(<>
+              <p style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:DS.textMuted,margin:"0 0 12px"}}>Injury Report — Betting Impact</p>
+              {injuries.map((item,i)=><InjuryCard key={i} item={item} index={i}/>)}
+              {injuries.length===0&&<p style={{textAlign:"center",color:DS.textMuted,padding:"3rem 0",fontSize:14}}>No injuries to report.</p>}
+            </>)}
+
+            {/* FOOTER */}
+            <div style={{marginTop:40,paddingTop:16,borderTop:`1px solid ${DS.border}`,textAlign:"center"}}>
+              <p style={{fontSize:11,color:DS.textDim,lineHeight:1.6}}>PRESSBOX AI — Powered by Claude + Web Search + FanDuel Sportsbook<br/>Confirm all lines before placing. Gamble responsibly.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
